@@ -21,7 +21,7 @@ class DenseUnit(IndividualUnit):
     def generate() -> 'DenseUnit':
         size = random.randint(constants.MIN_DENSE_SIZE, constants.MAX_DENSE_SIZE)
         activation = random.choice(constants.ACTIVATIONS)
-        dropout_rate = random.gauss(0.5, 0.2)
+        dropout_rate = max(random.gauss(0.5, 0.2), 0)
         return DenseUnit(size, activation, dropout_rate)
 
     def blend(self, partner: 'DenseUnit') -> 'DenseUnit':
@@ -35,14 +35,17 @@ class DenseUnit(IndividualUnit):
         activation = self.activation
         dropout_rate = self.dropout_rate
         if random.random() < constants.MUTATION_RATE:
-            size += random.gauss(0, 0.2)
+            size = max(int(random.gauss(size, 2)), 1)
             activation = random.choice(constants.ACTIVATIONS)
-            dropout_rate += random.gauss(0, 0.2)
+            dropout_rate = max(min(random.gauss(dropout_rate, 0.1), 1), 0)
         return DenseUnit(size, activation, dropout_rate)
 
     def add_to_network(self, network: Sequential) -> None:
         network.add(Dense(self.size, activation=self.activation))
         network.add(Dropout(self.dropout_rate))
+
+    def __str__(self) -> str:
+        return "Dense size:{}\tactivation:{}\tdropout:{}".format(self.size, self.activation, self.dropout_rate)
 
     def __eq__(self, o: 'DenseUnit') -> bool:
         if type(self) != type(o):
