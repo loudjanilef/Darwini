@@ -1,12 +1,10 @@
 class Individual:
-    def generate(self):
+    @staticmethod
+    def generate():
         pass
 
     def blend(self, partner):
         pass
 
     def mutate(self):
-        pass
-
-    def save(self, filename):
         pass
