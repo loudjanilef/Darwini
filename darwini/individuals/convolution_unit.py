@@ -35,7 +35,7 @@ class ConvolutionUnit(IndividualUnit):
         activation = random.choice(constants.ACTIVATIONS)
         has_pooling = random.random() < constants.POOLING_PROBABILITY
         pooling_size = random.randint(constants.MIN_POOL_SIZE, constants.MAX_POOL_SIZE)
-        pooling_stride = pooling_size - abs(random.gauss(pooling_size, 2))
+        pooling_stride = max(pooling_size - abs(random.gauss(pooling_size, 2)), 1)
         return ConvolutionUnit(filters_nbr, kernel_size, stride, activation, has_pooling, pooling_size, pooling_stride)
 
     def blend(self, partner: 'ConvolutionUnit') -> 'ConvolutionUnit':
@@ -62,18 +62,24 @@ class ConvolutionUnit(IndividualUnit):
             kernel_size = max(int(random.gauss(kernel_size, 2)), 1)
             stride = max(int(random.gauss(stride, 1)), 0)
             activation = random.choice(constants.ACTIVATIONS)
-            has_pooling = random.random < constants.POOLING_PROBABILITY
+            has_pooling = random.random() < constants.POOLING_PROBABILITY
             pooling_size = max(int(random.gauss(pooling_size, 1)), 1)
             pooling_stride = max(int(random.gauss(pooling_stride, 1)), 1)
         return ConvolutionUnit(filters_nbr, kernel_size, stride, activation, has_pooling, pooling_size, pooling_stride)
 
-    def add_to_network(self, network: Sequential) -> None:
-        network.add(
-            Conv2D(self.filters_nbr, (self.kernel_size, self.kernel_size), (self.stride, self.stride), padding='valid',
-                   activation=self.activation))
+    def add_to_network(self, network: Sequential, data_format='channels_last', input_shape=None) -> None:
+        if input_shape is not None:
+            network.add(
+                Conv2D(self.filters_nbr, (self.kernel_size, self.kernel_size), strides=(self.stride, self.stride),
+                       data_format=data_format, padding='same', activation=self.activation, input_shape=input_shape))
+        else:
+            network.add(
+                Conv2D(self.filters_nbr, (self.kernel_size, self.kernel_size), strides=(self.stride, self.stride),
+                       data_format=data_format, padding='same', activation=self.activation))
         if self.has_pooling:
             network.add(
-                MaxPooling2D((self.pooling_size, self.pooling_stride), (self.pooling_stride, self.pooling_stride)))
+                MaxPooling2D((self.pooling_size, self.pooling_stride), padding='same',
+                             strides=(self.pooling_stride, self.pooling_stride)))
 
     def __eq__(self, o: 'ConvolutionUnit') -> bool:
         if type(self) != type(o):
