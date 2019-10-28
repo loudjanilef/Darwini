@@ -22,7 +22,7 @@ class Network(Individual):
                  data_format='channels_last') -> 'Network':
         if input_shape is None or output_shape is None:
             raise ValueError("Generation of a network needs input and output shapes")
-        conv_units_nbr = random.randint(0, 10)
+        conv_units_nbr = 0  # random.randint(0, 10)
         dense_units_nbr = random.randint(0, 10)
         conv_units = []
         for _ in range(conv_units_nbr):
