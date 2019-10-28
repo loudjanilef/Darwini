@@ -7,6 +7,34 @@ from keras.models import Sequential
 from darwini.individuals.convolution_unit import ConvolutionUnit
 from darwini.individuals.dense_unit import DenseUnit
 from darwini.individuals.individual import Individual
+from darwini.individuals.individual_unit import IndividualUnit
+
+
+def adjust_size(units: List, desired_len: int, new_unit: IndividualUnit) -> List:
+    while desired_len < len(units):
+        remove_index = random.choice(range(len(units)))
+        units.pop(remove_index)
+    while desired_len > len(units):
+        add_index = random.choice(range(len(units)))
+        units.insert(add_index, new_unit)
+    return units
+
+
+def blend_lists(self_units: List, partner_units: List) -> List:
+    self_len, partner_len = len(self_units), len(partner_units)
+    units_nbr = random.choice([self_len, partner_len])
+    if units_nbr == 0:
+        return []
+    selected_indexes = random.sample(range(max(self_len, partner_len)), units_nbr)
+    units = []
+    for index in selected_indexes:
+        if index < self_len and index < partner_len:
+            units.append(self_units[index].blend(partner_units[index]))
+        elif index < self_len:
+            units.append(self_units[index])
+        else:
+            units.append(partner_units[index])
+    return units
 
 
 class Network(Individual):
@@ -22,7 +50,7 @@ class Network(Individual):
                  data_format='channels_last') -> 'Network':
         if input_shape is None or output_shape is None:
             raise ValueError("Generation of a network needs input and output shapes")
-        conv_units_nbr = 0  # random.randint(0, 10)
+        conv_units_nbr = random.randint(0, 10)
         dense_units_nbr = random.randint(0, 10)
         conv_units = []
         for _ in range(conv_units_nbr):
@@ -41,28 +69,8 @@ class Network(Individual):
         self.dense_units = dense_units
 
     def blend(self, partner: 'Network') -> 'Network':
-        self_conv_len, self_dense_len = len(self.conv_units), len(self.dense_units)
-        partner_conv_len, partner_dense_len = len(partner.conv_units), len(partner.dense_units)
-        conv_units_nbr = random.choice([self_conv_len, partner_conv_len])
-        dense_units_nbr = random.choice([self_dense_len, partner_dense_len])
-        selected_conv_units = random.sample(range(max(self_conv_len, partner_conv_len)), conv_units_nbr)
-        selected_dense_units = random.sample(range(max(self_dense_len, partner_dense_len)), dense_units_nbr)
-        conv_units = []
-        for index in selected_conv_units:
-            if index < self_conv_len and index < partner_conv_len:
-                conv_units.append(self.conv_units[index].blend(partner.conv_units[index]))
-            elif index < self_conv_len:
-                conv_units.append(self.conv_units[index])
-            else:
-                conv_units.append(partner.conv_units[index])
-        dense_units = []
-        for index in selected_dense_units:
-            if index < self_dense_len and index < partner_dense_len:
-                dense_units.append(self.dense_units[index].blend(partner.dense_units[index]))
-            elif index < self_dense_len:
-                dense_units.append(self.dense_units[index])
-            else:
-                dense_units.append(partner.dense_units[index])
+        conv_units = blend_lists(self.conv_units, partner.conv_units)
+        dense_units = blend_lists(self.dense_units, partner.dense_units)
         return Network(self.input_shape, self.output_shape, self.data_format, conv_units, dense_units)
 
     def mutate(self) -> 'Network':
@@ -70,18 +78,8 @@ class Network(Individual):
         desired_new_dense_len = max(int(random.gauss(len(self.dense_units), 1)), 0)
         conv_units = [conv.mutate() for conv in self.conv_units]
         dense_units = [dense.mutate() for dense in self.dense_units]
-        while desired_new_conv_len < len(conv_units):
-            remove_index = random.choice(range(len(conv_units)))
-            conv_units.pop(remove_index)
-        while desired_new_conv_len > len(conv_units):
-            add_index = random.choice(range(len(conv_units)))
-            conv_units.insert(add_index, ConvolutionUnit.generate())
-        while desired_new_dense_len < len(dense_units):
-            remove_index = random.choice(range(len(dense_units)))
-            dense_units.pop(remove_index)
-        while desired_new_dense_len > len(dense_units):
-            add_index = random.choice(range(len(dense_units)))
-            dense_units.insert(add_index, DenseUnit.generate())
+        conv_units = adjust_size(conv_units, desired_new_conv_len, ConvolutionUnit.generate())
+        dense_units = adjust_size(dense_units, desired_new_dense_len, DenseUnit.generate())
         return Network(self.input_shape, self.output_shape, self.data_format, conv_units, dense_units)
 
     def compile(self) -> Sequential:
@@ -108,8 +106,9 @@ class Network(Individual):
         if type(self) != type(o):
             return False
 
-        if self.data_format != o.data_format or self.input_shape != o.input_shape or self.output_shape != o.output_shape \
-                or len(self.conv_units) != len(o.conv_units) or len(self.dense_units) != len(o.dense_units):
+        if self.data_format != o.data_format or self.input_shape != o.input_shape or \
+                self.output_shape != o.output_shape or len(self.conv_units) != len(o.conv_units) \
+                or len(self.dense_units) != len(o.dense_units):
             return False
 
         for self_conv, o_conv in zip(self.conv_units, o.conv_units):
