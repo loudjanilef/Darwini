@@ -33,8 +33,10 @@ class Breeder:
 
     def __initialize(self):
         for i in range(self.population_size):
-            network = Network.generate(self.input_shape, self.output_shape)
-            self.__compile_and_fit(network, i + 1)
+            success = False
+            while not success:
+                network = Network.generate(self.input_shape, self.output_shape)
+                success = self.__compile_and_fit(network, i + 1)
         self.__select()
         return self.population[0][0], self.population[0][2]
 
@@ -46,21 +48,29 @@ class Breeder:
         self.generation_nbr += 1
         self.population = self.selected
         for i, pair in enumerate(combinations(self.selected, 2)):
-            network = pair[0][1].blend(pair[1][1])
-            network.mutate()
-            self.__compile_and_fit(network, i + 1)
+            success = False
+            while not success:
+                print("retry")
+                network = pair[0][1].blend(pair[1][1])
+                network.mutate()
+                success = self.__compile_and_fit(network, i + 1)
         self.__select()
         return self.population[0][0], self.population[0][2]
 
-    def __compile_and_fit(self, network, generation):
-        model = network.compile()
-        print("Generation {} : Training model {}/{}".format(self.generation_nbr, generation, self.population_size),
-              end="\r",
-              flush=True)
-        model.fit(self.train_x, self.train_y, batch_size=constants.BATCH_SIZE, epochs=constants.EPOCH_NBR,
-                  verbose=0)
+    def __compile_and_fit(self, network, generation) -> bool:
+        try:
+            model = network.compile()
+            print("Generation {} : Training model {}/{}".format(self.generation_nbr, generation, self.population_size),
+                  end="\r", flush=True)
+            model.fit(self.train_x, self.train_y, batch_size=constants.BATCH_SIZE, epochs=constants.EPOCH_NBR,
+                      verbose=0)
+        except KeyboardInterrupt:
+            raise
+        except:
+            return False
         score = model.evaluate(self.val_x, self.val_y, verbose=0)
         self.population.append((score, network, model))
+        return True
 
     def __select(self):
         self.population.sort(key=lambda item: item[0], reverse=True)
