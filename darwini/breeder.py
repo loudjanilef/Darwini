@@ -12,6 +12,7 @@ from darwini.individuals.network import Network
 class Breeder:
     population_size: int = 100
     population: List[Tuple[int, Network, Sequential]]
+    selected: List[Tuple[int, Network, Sequential]]
     train_x: ndarray
     train_y: ndarray
     test_x: ndarray
@@ -22,6 +23,7 @@ class Breeder:
 
     def __init__(self, train_x: ndarray, train_y: ndarray, test_x: ndarray, test_y: ndarray) -> None:
         self.population = []
+        self.selected = []
         self.train_x = train_x
         self.train_y = train_y
         self.test_x = test_x
@@ -33,12 +35,16 @@ class Breeder:
         for i in range(self.population_size):
             network = Network.generate(self.input_shape, self.output_shape)
             model = network.compile()
-            print("Generation {} : Training model {}/{}".format(self.generation_nbr + 1, i + 1, self.population_size))
+            print("Generation {} : Training model {}/{}".format(self.generation_nbr, i + 1, self.population_size))
             model.fit(self.train_x, self.train_y, batch_size=constants.BATCH_SIZE, epochs=constants.EPOCH_NBR,
                       verbose=0)
             score = model.evaluate(self.test_x, self.test_y, verbose=0)
             self.population.append((score, network, model))
         self.population.sort(key=lambda item: item[0], reverse=True)
+        self.selected = self.population[:5]
+        self.selected.extend(random.sample(self.population[:5], 5))
+        for i, select in enumerate(self.selected):
+            select[1].save("gen{}elem{}".format(self.generation_nbr, i))
         return self.population[0][0], self.population[0][2]
 
     def generation(self):
@@ -47,18 +53,19 @@ class Breeder:
             return self.__initialize()
 
         self.generation_nbr += 1
-        selected = self.population[:5]
-        self.population = self.population[5:]
-        selected.extend(random.sample(self.population, 5))
-        self.population = selected
-        for i, pair in enumerate(combinations(selected, 2)):
+        self.population = self.selected
+        for i, pair in enumerate(combinations(self.selected, 2)):
             network = pair[0][1].blend(pair[1][1])
             network.mutate()
             model = network.compile()
-            print("Generation {} : Training model {}/{}".format(self.generation_nbr + 1, i + 1, self.population_size))
+            print("Generation {} : Training model {}/{}".format(self.generation_nbr, i + 1, self.population_size))
             model.fit(self.train_x, self.train_y, batch_size=constants.BATCH_SIZE, epochs=constants.EPOCH_NBR,
                       verbose=0)
             score = model.evaluate(self.test_x, self.test_y, verbose=0)
             self.population.append((score, network, model))
         self.population.sort(key=lambda item: item[0], reverse=True)
+        self.selected = self.population[:5]
+        self.selected.extend(random.sample(self.population[:5], 5))
+        for i, select in enumerate(self.selected):
+            select[1].save("gen{}elem{}".format(self.generation_nbr, i))
         return self.population[0][0], self.population[0][2]

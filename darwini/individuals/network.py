@@ -101,7 +101,8 @@ class Network(Individual):
         return model
 
     def save(self, filename) -> None:
-        pass
+        with open(filename, "w+") as file:
+            file.write(str(self))
 
     def __eq__(self, o: 'Network') -> bool:
         if type(self) != type(o):
