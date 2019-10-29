@@ -3,6 +3,7 @@ from itertools import combinations
 from typing import List, Tuple
 
 from keras import Sequential
+from keras.callbacks import EarlyStopping
 from numpy.core.records import ndarray
 
 from darwini import constants
@@ -60,16 +61,16 @@ class Breeder:
     def __compile_and_fit(self, network, generation) -> bool:
         try:
             model = network.compile()
-            print("Generation {} : Training model {}/{}".format(self.generation_nbr, generation, self.population_size),
-                  end="\r", flush=True)
+            early_stopper = EarlyStopping(patience=3)
+            print("Generation {} : Training model {}/{}".format(self.generation_nbr, generation, self.population_size))
             model.fit(self.train_x, self.train_y, batch_size=constants.BATCH_SIZE, epochs=constants.EPOCH_NBR,
-                      verbose=0)
+                      verbose=1, validation_data=(self.val_x, self.val_y), callbacks=[early_stopper])
         except KeyboardInterrupt:
             raise
         except:
             return False
         score = model.evaluate(self.val_x, self.val_y, verbose=0)
-        self.population.append((score, network, model))
+        self.population.append((score[1], network, model))
         return True
 
     def __select(self):

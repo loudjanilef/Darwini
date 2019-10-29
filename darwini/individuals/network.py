@@ -95,7 +95,7 @@ class Network(Individual):
         for unit in self.dense_units:
             unit.add_to_network(model)
         model.add(Dense(self.output_shape))
-        model.compile('adagrad', 'categorical_crossentropy', metrics=['accuracy'])
+        model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
         return model
 
     def save(self, filename) -> None:
