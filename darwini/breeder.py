@@ -1,5 +1,5 @@
 import random
-from itertools import combinations
+from itertools import permutations
 from typing import List, Tuple
 
 from keras import Sequential
@@ -48,7 +48,7 @@ class Breeder:
 
         self.generation_nbr += 1
         self.population = self.selected
-        for i, pair in enumerate(combinations(self.selected, 2)):
+        for i, pair in enumerate(permutations(self.selected, 2)):
             success = False
             while not success:
                 print("retry")
@@ -76,6 +76,6 @@ class Breeder:
     def __select(self):
         self.population.sort(key=lambda item: item[0], reverse=True)
         self.selected = self.population[:5]
-        self.selected.extend(random.sample(self.population[:5], 5))
+        self.selected.extend(random.sample(self.population[5:], 5))
         for i, select in enumerate(self.selected):
             select[1].save("gen{}elem{}".format(self.generation_nbr, i))

@@ -12,10 +12,12 @@ from darwini.individuals.individual_unit import IndividualUnit
 
 def adjust_size(units: List, desired_len: int, new_unit: IndividualUnit) -> List:
     while desired_len < len(units):
+        if len(units) == 0:
+            break
         remove_index = random.choice(range(len(units)))
         units.pop(remove_index)
     while desired_len > len(units):
-        add_index = random.choice(range(len(units)))
+        add_index = random.choice(range(len(units))) if len(units) > 0 else 0
         units.insert(add_index, new_unit)
     return units
 
