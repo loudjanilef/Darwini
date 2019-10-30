@@ -2,6 +2,7 @@ import random
 from itertools import permutations
 from typing import List, Tuple
 
+import keras.backend as K
 from keras import Sequential
 from keras.callbacks import EarlyStopping
 from numpy.core.records import ndarray
@@ -55,6 +56,7 @@ class Breeder:
                 network = pair[0][1].blend(pair[1][1])
                 network.mutate()
                 success = self.__compile_and_fit(network, i + 1)
+            K.clear_session()
         self.__select()
         return self.population[0][0], self.population[0][2]
 
