@@ -1,6 +1,7 @@
 import random
 from typing import List
 
+from fastdtw import fastdtw
 from keras.layers import Flatten, Dense
 from keras.models import Sequential
 
@@ -39,6 +40,48 @@ def blend_lists(self_units: List, partner_units: List) -> List:
     return units
 
 
+def blend_convs(self_units: List[ConvolutionUnit], partner_units: List[ConvolutionUnit]) -> List:
+    def distance(u: int, v: int):
+        return abs(u - v)
+
+    self_blocks = []
+    partner_blocks = []
+    self_output_sizes = [unit.output_size() for unit in self_units]
+    partner_output_sizes = [unit.output_size() for unit in partner_units]
+    _, path = fastdtw(self_output_sizes, partner_output_sizes, dist=distance)
+    last_self_index, last_partner_index = -1, -1
+    self_block, partner_block = [], []
+    first_elem = True
+    for self_index, partner_index in path:
+        if not first_elem and self_index != last_self_index and partner_index != last_partner_index:
+            partner_blocks.append(partner_block)
+            partner_block = []
+            self_blocks.append(self_block)
+            self_block = []
+        if self_index != last_self_index:
+            self_block.append(self_units[self_index])
+        if partner_index != last_partner_index:
+            partner_block.append(partner_units[partner_index])
+        last_self_index = self_index
+        last_partner_index = partner_index
+        first_elem = False
+    partner_blocks.append(partner_block)
+    self_blocks.append(self_block)
+
+    # Select random matching blocks from the two lists
+    blocks = []
+    for self_block, partner_block in zip(self_blocks, partner_blocks):
+        blocks.append(random.choice([self_block, partner_block]))
+    # Flatten blocks
+    units = [item for sublist in blocks for item in sublist]
+    # Update input sizes
+    input_size = units[0].output_size()
+    for i in range(1, len(units)):
+        units[i].input_size = input_size
+        input_size = units[i].output_size()
+    return units
+
+
 class Network(Individual):
     input_shape: List[int]
     output_shape: int
@@ -52,11 +95,16 @@ class Network(Individual):
                  data_format='channels_last') -> 'Network':
         if input_shape is None or output_shape is None:
             raise ValueError("Generation of a network needs input and output shapes")
-        conv_units_nbr = random.randint(0, 10)
         dense_units_nbr = random.randint(0, 10)
         conv_units = []
-        for _ in range(conv_units_nbr):
-            conv_units.append(ConvolutionUnit.generate())
+        input_size = input_shape[0]
+        while True:
+            conv_unit = ConvolutionUnit.generate(input_size)
+            conv_units.append(conv_unit)
+            output_size = conv_unit.output_size()
+            if output_size <= 8:
+                break
+            input_size = output_size
         dense_units = []
         for _ in range(dense_units_nbr):
             dense_units.append(DenseUnit.generate())
@@ -71,16 +119,14 @@ class Network(Individual):
         self.dense_units = dense_units
 
     def blend(self, partner: 'Network') -> 'Network':
-        conv_units = blend_lists(self.conv_units, partner.conv_units)
+        conv_units = blend_convs(self.conv_units, partner.conv_units)
         dense_units = blend_lists(self.dense_units, partner.dense_units)
         return Network(self.input_shape, self.output_shape, self.data_format, conv_units, dense_units)
 
     def mutate(self) -> 'Network':
-        desired_new_conv_len = max(int(random.gauss(len(self.conv_units), 1)), 0)
         desired_new_dense_len = max(int(random.gauss(len(self.dense_units), 1)), 0)
         conv_units = [conv.mutate() for conv in self.conv_units]
         dense_units = [dense.mutate() for dense in self.dense_units]
-        conv_units = adjust_size(conv_units, desired_new_conv_len, ConvolutionUnit.generate())
         dense_units = adjust_size(dense_units, desired_new_dense_len, DenseUnit.generate())
         return Network(self.input_shape, self.output_shape, self.data_format, conv_units, dense_units)
 
@@ -96,7 +142,7 @@ class Network(Individual):
         model.add(Flatten())
         for unit in self.dense_units:
             unit.add_to_network(model)
-        model.add(Dense(self.output_shape))
+        model.add(Dense(self.output_shape, activation="relu"))
         model.compile('adam', 'categorical_crossentropy', metrics=['accuracy'])
         return model
 

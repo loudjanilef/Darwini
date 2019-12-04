@@ -40,7 +40,7 @@ class Breeder:
                 network = Network.generate(self.input_shape, self.output_shape)
                 success = self.__compile_and_fit(network, i + 1)
         self.__select()
-        return self.population[0][0], self.population[0][2]
+        return self.population[0]
 
     def generation(self):
         if self.generation_nbr == 0:
@@ -58,7 +58,7 @@ class Breeder:
                 success = self.__compile_and_fit(network, i + 1)
             K.clear_session()
         self.__select()
-        return self.population[0][0], self.population[0][2]
+        return self.population[0]
 
     def __compile_and_fit(self, network, generation) -> bool:
         try:
